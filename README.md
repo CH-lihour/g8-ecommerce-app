@@ -1,4 +1,4 @@
-# smart_student_attendance_system
+# g8_eccomerce_app
 
 A new Flutter project.
 

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "109288526882",
+    "project_id": "g8-eccomerce-app",
+    "storage_bucket": "g8-eccomerce-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:109288526882:android:5b2ce237d7fc219c4b267b",
+        "android_client_info": {
+          "package_name": "com.example.g8_eccomerce_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCtqh5H6wWwraOubEGqthKQEKM6AJP1GSs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="smart_student_attendance_system"
+        android:label="g8_eccomerce_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
