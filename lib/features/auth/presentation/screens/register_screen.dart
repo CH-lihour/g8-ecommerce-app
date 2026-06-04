@@ -33,12 +33,19 @@ class RegisterScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                backgroundColor: const Color(0xFF5B4DE6),
+              ),
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const VerificationScreen()),
                 );
               },
-              child: const Text('Create Account'),
+              child: const Text(
+                'Create Account',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
