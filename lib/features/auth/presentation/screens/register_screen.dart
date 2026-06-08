@@ -1,64 +1,167 @@
 import 'package:flutter/material.dart';
+import '../../data/auth_service.dart';
+import '../widgets/auth_widgets.dart';
 import 'verification_screen.dart';
 
-class RegisterScreen extends StatelessWidget {
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final _authService = AuthService();
+  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  bool _obscurePassword = true;
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red.shade600),
+    );
+  }
+
+  Future<void> _register() async {
+    final username = _usernameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (username.isEmpty || email.isEmpty || password.isEmpty) {
+      _showError('Please fill in all fields.');
+      return;
+    }
+    if (password.length < 6) {
+      _showError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      await _authService.register(
+        username: username,
+        email: email,
+        password: password,
+      );
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => VerificationScreen(email: email),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showError(AuthService.messageFromError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Email or Phone Number'),
-            const SizedBox(height: 8),
-            const TextField(
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Email or Phone Number',
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text('Password'),
-            const SizedBox(height: 8),
-            const TextField(
-              obscureText: true,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Password',
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                backgroundColor: const Color(0xFF5B4DE6),
-              ),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const VerificationScreen()),
-                );
-              },
-              child: const Text(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 24),
+              const Text(
                 'Create Account',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: kDarkText,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.g_mobiledata),
-              label: const Text('Sign up with Google'),
-            ),
-            OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.facebook),
-              label: const Text('Sign up with Facebook'),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                'Start learning with create your account',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+              ),
+              const SizedBox(height: 32),
+              const AuthFieldLabel('Username'),
+              const SizedBox(height: 8),
+              AuthInputField(
+                controller: _usernameController,
+                hintText: 'Create your username',
+                icon: Icons.person_outline,
+              ),
+              const SizedBox(height: 20),
+              const AuthFieldLabel('Email or Phone Number'),
+              const SizedBox(height: 8),
+              AuthInputField(
+                controller: _emailController,
+                hintText: 'Enter your email or phone number',
+                icon: Icons.mail_outline,
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 20),
+              const AuthFieldLabel('Password'),
+              const SizedBox(height: 8),
+              AuthInputField(
+                controller: _passwordController,
+                hintText: 'Create your password',
+                icon: Icons.lock_outline,
+                obscureText: _obscurePassword,
+                suffix: IconButton(
+                  splashRadius: 20,
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.grey.shade500,
+                    size: 20,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                ),
+              ),
+              const SizedBox(height: 32),
+              AuthPrimaryButton(
+                label: 'Create Account',
+                loading: _loading,
+                onPressed: _register,
+              ),
+              const SizedBox(height: 24),
+              Center(
+                child: Text(
+                  'Or using other method',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                ),
+              ),
+              const SizedBox(height: 20),
+              AuthSocialButton(
+                label: 'Sign Up with Google',
+                icon: const GoogleLogo(),
+                onPressed: () {},
+              ),
+              const SizedBox(height: 14),
+              AuthSocialButton(
+                label: 'Sign Up with Facebook',
+                icon: const Icon(
+                  Icons.facebook,
+                  color: Color(0xFF1877F2),
+                  size: 24,
+                ),
+                onPressed: () {},
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );

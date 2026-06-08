@@ -36,6 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   firebase_core: ^4.9.0
   cloud_firestore: ^6.4.1
+  firebase_auth: ^6.5.1
+  firebase_storage: ^13.4.2
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +66,7 @@ flutter:
     - assets/images/onboarding1.png
     - assets/images/onboarding2.png
     - assets/images/onboarding3.png
+    - assets/images/logos/google_logo.png
 
   # Example of other asset entries:
   #   - images/a_dot_burr.jpeg

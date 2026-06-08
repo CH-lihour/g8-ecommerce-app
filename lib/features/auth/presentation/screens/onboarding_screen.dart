@@ -34,18 +34,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 children: [
                   _OnboardPage(
                     title: 'Various Collections Of The Latest Products',
+                    subTitle:
+                        'Explore a wide range of the newest arrivals, handpicked just for you.',
                     image: 'assets/images/onboarding1.png',
                     controller: _controller,
                     index: 0,
                   ),
                   _OnboardPage(
                     title: 'Complete Collection Of Colors And Sizes',
+                    subTitle:
+                        'Find your perfect fit with every color and size available in one place.',
                     image: 'assets/images/onboarding2.png',
                     controller: _controller,
                     index: 1,
                   ),
                   _OnboardPage(
                     title: 'Find The Most Suitable Outfit For You',
+                    subTitle:
+                        'Get personalized recommendations to match your unique style.',
                     image: 'assets/images/onboarding3.png',
                     controller: _controller,
                     index: 2,
@@ -120,12 +126,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 class _OnboardPage extends StatelessWidget {
   final String title;
+  final String subTitle;
   final String image;
   final PageController? controller;
   final int index;
 
   const _OnboardPage({
     required this.title,
+    required this.subTitle,
     this.image = 'assets/images/onboarding1.png',
     this.controller,
     this.index = 0,
@@ -183,6 +191,14 @@ class _OnboardPage extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
+          if (subTitle.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              subTitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            ),
+          ],
         ],
       ),
     );
