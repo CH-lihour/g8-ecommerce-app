@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 /// App accent color, shared across the shop screens.
@@ -5,17 +6,43 @@ const Color kPrimary = Color(0xFF5B4DE6);
 const Color kDarkText = Color(0xFF1A1A2E);
 
 class Product {
+  final String id;
   final String name;
   final String seller;
   final double price;
+
+  /// Hosted URL for the product photo (e.g. a Cloudinary link). Empty when the
+  /// product has no image yet (we fall back to the [swatch] placeholder).
+  final String imageUrl;
   final Color swatch;
 
-  const Product({
+  /// When the product was added; used to sort newest-first.
+  final DateTime createdAt;
+
+  Product({
+    this.id = '',
     required this.name,
     required this.seller,
     required this.price,
-    required this.swatch,
-  });
+    this.imageUrl = '',
+    this.swatch = const Color(0xFFE0E0E0),
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Builds a [Product] from a Firestore `products` document.
+  factory Product.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? const {};
+    // Tolerate either spelling of the timestamp field.
+    final ts = (data['createdAt'] ?? data['createAt']) as Timestamp?;
+    return Product(
+      id: doc.id,
+      name: (data['name'] ?? '') as String,
+      seller: (data['seller'] ?? '') as String,
+      price: (data['price'] as num?)?.toDouble() ?? 0,
+      imageUrl: (data['imageUrl'] ?? '') as String,
+      createdAt: ts?.toDate(),
+    );
+  }
 }
 
 class Category {
@@ -47,7 +74,7 @@ class PopularSearch {
 }
 
 /// Mock catalogue used until a real backend is wired up.
-const List<Product> kNewArrivals = [
+final List<Product> kNewArrivals = [
   Product(
     name: 'The Mirac Jiz',
     seller: 'Lisa Robber',

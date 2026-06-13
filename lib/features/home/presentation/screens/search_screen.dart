@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/shop_data.dart';
+import 'search_results_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -9,7 +10,28 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
+  final _controller = TextEditingController();
   List<String> _lastSearch = List.of(kLastSearch);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Records [term] as a recent search (most recent first, no duplicates) and
+  /// opens the results screen for it.
+  void _search(String term) {
+    final query = term.trim();
+    if (query.isEmpty) return;
+    setState(() {
+      _lastSearch.remove(query);
+      _lastSearch.insert(0, query);
+    });
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => SearchResultsScreen(query: query)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +59,9 @@ class _SearchScreenState extends State<SearchScreen> {
                       height: 46,
                       child: TextField(
                         autofocus: true,
+                        controller: _controller,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: _search,
                         decoration: InputDecoration(
                           hintText: 'Search',
                           prefixIcon: Icon(
@@ -91,11 +116,14 @@ class _SearchScreenState extends State<SearchScreen> {
                 spacing: 10,
                 runSpacing: 10,
                 children: _lastSearch
-                    .map((term) => _SearchChip(
-                          label: term,
-                          onRemove: () =>
-                              setState(() => _lastSearch.remove(term)),
-                        ))
+                    .map(
+                      (term) => _SearchChip(
+                        label: term,
+                        onTap: () => _search(term),
+                        onRemove: () =>
+                            setState(() => _lastSearch.remove(term)),
+                      ),
+                    )
                     .toList(),
               ),
               const SizedBox(height: 28),
@@ -113,7 +141,10 @@ class _SearchScreenState extends State<SearchScreen> {
                   padding: const EdgeInsets.only(top: 8),
                   itemCount: kPopularSearch.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 18),
-                  itemBuilder: (_, i) => _PopularRow(item: kPopularSearch[i]),
+                  itemBuilder: (_, i) => _PopularRow(
+                    item: kPopularSearch[i],
+                    onTap: () => _search(kPopularSearch[i].name),
+                  ),
                 ),
               ),
             ],
@@ -126,31 +157,36 @@ class _SearchScreenState extends State<SearchScreen> {
 
 class _SearchChip extends StatelessWidget {
   final String label;
+  final VoidCallback onTap;
   final VoidCallback onRemove;
 
-  const _SearchChip({required this.label, required this.onRemove});
+  const _SearchChip({
+    required this.label,
+    required this.onTap,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 13, color: kDarkText),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: onRemove,
-            child: Icon(Icons.close, size: 15, color: Colors.grey.shade500),
-          ),
-        ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 13, color: kDarkText)),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: onRemove,
+              child: Icon(Icons.close, size: 15, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -158,59 +194,64 @@ class _SearchChip extends StatelessWidget {
 
 class _PopularRow extends StatelessWidget {
   final PopularSearch item;
+  final VoidCallback onTap;
 
-  const _PopularRow({required this.item});
+  const _PopularRow({required this.item, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: item.swatch,
-            borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: item.swatch,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.image_outlined, color: Colors.white54),
           ),
-          child: const Icon(Icons.image_outlined, color: Colors.white54),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                item.name,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: kDarkText,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: kDarkText,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                item.searches,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: item.tagColor.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            item.tag,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: item.tagColor,
+                const SizedBox(height: 4),
+                Text(
+                  item.searches,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                ),
+              ],
             ),
           ),
-        ),
-      ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: item.tagColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              item.tag,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: item.tagColor,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

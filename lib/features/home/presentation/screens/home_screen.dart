@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../auth/data/auth_service.dart';
+import '../../data/product_service.dart';
 import '../models/shop_data.dart';
+import 'product_detail_screen.dart';
 import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,7 +19,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final pages = [
       const _ShopTab(),
-      const _PlaceholderTab(label: 'My Order', icon: Icons.local_shipping_outlined),
+      const _PlaceholderTab(
+        label: 'My Order',
+        icon: Icons.local_shipping_outlined,
+      ),
       const _PlaceholderTab(label: 'Favorite', icon: Icons.favorite_border),
       const _PlaceholderTab(label: 'My Profile', icon: Icons.person_outline),
     ];
@@ -37,10 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
         showUnselectedLabels: true,
         elevation: 8,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_filled),
-            label: 'Home',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
           BottomNavigationBarItem(
             icon: Icon(Icons.local_shipping_outlined),
             label: 'My Order',
@@ -91,7 +93,35 @@ class _ShopTabState extends State<_ShopTab> {
           _buildTabBar(),
           const SizedBox(height: 8),
           Expanded(
-            child: _tab == 0 ? const _HomeContent() : const _CategoryContent(),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, animation) {
+                // Slide the incoming tab in from the side it sits on
+                // (Home from the left, Category from the right), with a fade.
+                final incoming = child.key == ValueKey(_tab);
+                final begin = Offset(
+                  incoming
+                      ? (_tab == 0 ? -0.15 : 0.15)
+                      : (_tab == 0 ? 0.15 : -0.15),
+                  0,
+                );
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: begin,
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                );
+              },
+              child: _tab == 0
+                  ? const _HomeContent(key: ValueKey(0))
+                  : const _CategoryContent(key: ValueKey(1)),
+            ),
           ),
         ],
       ),
@@ -130,9 +160,9 @@ class _ShopTabState extends State<_ShopTab> {
           const Spacer(),
           _circleIcon(
             Icons.search,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SearchScreen()),
-            ),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SearchScreen())),
           ),
           const SizedBox(width: 12),
           _circleIcon(Icons.notifications_none, badge: true),
@@ -169,12 +199,7 @@ class _ShopTabState extends State<_ShopTab> {
   Widget _buildTabBar() {
     return Padding(
       padding: const EdgeInsets.only(top: 16),
-      child: Row(
-        children: [
-          _tabItem('Home', 0),
-          _tabItem('Category', 1),
-        ],
-      ),
+      child: Row(children: [_tabItem('Home', 0), _tabItem('Category', 1)]),
     );
   }
 
@@ -207,8 +232,15 @@ class _ShopTabState extends State<_ShopTab> {
   }
 }
 
-class _HomeContent extends StatelessWidget {
-  const _HomeContent();
+class _HomeContent extends StatefulWidget {
+  const _HomeContent({super.key});
+
+  @override
+  State<_HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<_HomeContent> {
+  final _productService = ProductService();
 
   @override
   Widget build(BuildContext context) {
@@ -217,7 +249,7 @@ class _HomeContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildBanner(),
+          const _BannerCarousel(),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -241,24 +273,157 @@ class _HomeContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: kNewArrivals.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 18,
-              crossAxisSpacing: 16,
-              childAspectRatio: 0.62,
-            ),
-            itemBuilder: (_, i) => _ProductCard(product: kNewArrivals[i]),
+          StreamBuilder<List<Product>>(
+            stream: _productService.watchProducts(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (snapshot.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: Text(
+                      'Could not load products.\n${snapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey.shade500),
+                    ),
+                  ),
+                );
+              }
+
+              final products = snapshot.data ?? const [];
+              if (products.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(child: Text('No products yet.')),
+                );
+              }
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: products.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 18,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 0.62,
+                ),
+                itemBuilder: (_, i) => GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          ProductDetailScreen(product: products[i]),
+                    ),
+                  ),
+                  child: _ProductCard(product: products[i]),
+                ),
+              );
+            },
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildBanner() {
+/// Swipeable promo banner with a page-dot indicator. Kept as its own widget so
+/// paging through slides only rebuilds the carousel, not the whole home tab.
+class _BannerCarousel extends StatefulWidget {
+  const _BannerCarousel();
+
+  @override
+  State<_BannerCarousel> createState() => _BannerCarouselState();
+}
+
+class _BannerCarouselState extends State<_BannerCarousel> {
+  final _controller = PageController();
+  int _index = 0;
+
+  /// Promo slides shown in the swipeable banner carousel.
+  static const _banners = <_BannerData>[
+    _BannerData(
+      title: '24% off shipping today\non bag purchases',
+      subtitle: 'By Kutuku Store',
+      icon: Icons.shopping_bag_outlined,
+    ),
+    _BannerData(
+      title: 'Buy 1 get 1 free\non selected sneakers',
+      subtitle: 'By Footwear Hub',
+      icon: Icons.directions_run,
+    ),
+    _BannerData(
+      title: 'Flat 15% off\nyour first order',
+      subtitle: 'By Kutuku Store',
+      icon: Icons.local_offer_outlined,
+    ),
+  ];
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 150,
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: _banners.length,
+            onPageChanged: (i) => setState(() => _index = i),
+            itemBuilder: (_, i) => _BannerCard(data: _banners[i]),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(_banners.length, (i) {
+            final selected = i == _index;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: selected ? 10 : 8,
+              height: selected ? 10 : 8,
+              decoration: BoxDecoration(
+                color: selected ? kPrimary : Colors.grey.shade300,
+                shape: BoxShape.circle,
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+}
+
+/// Promo content for a single banner slide.
+class _BannerData {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  const _BannerData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+}
+
+class _BannerCard extends StatelessWidget {
+  final _BannerData data;
+
+  const _BannerCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       height: 150,
       padding: const EdgeInsets.all(20),
@@ -273,9 +438,9 @@ class _HomeContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  '24% off shipping today\non bag purchases',
-                  style: TextStyle(
+                Text(
+                  data.title,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: kDarkText,
@@ -284,7 +449,7 @@ class _HomeContent extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'By Kutuku Store',
+                  data.subtitle,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                 ),
               ],
@@ -297,7 +462,7 @@ class _HomeContent extends StatelessWidget {
               color: kPrimary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.shopping_bag_outlined, color: kPrimary),
+            child: Icon(data.icon, color: kPrimary),
           ),
         ],
       ),
@@ -318,17 +483,9 @@ class _ProductCard extends StatelessWidget {
         Expanded(
           child: Stack(
             children: [
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: product.swatch,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.image_outlined,
-                  color: Colors.white54,
-                  size: 40,
-                ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: _buildImage(),
               ),
               Positioned(
                 top: 10,
@@ -378,10 +535,43 @@ class _ProductCard extends StatelessWidget {
       ],
     );
   }
+
+  /// Shows the product photo from Firebase Storage, or a colored placeholder
+  /// while it loads / when the product has no image.
+  Widget _buildImage() {
+    final placeholder = Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: product.swatch,
+      child: const Icon(Icons.image_outlined, color: Colors.white54, size: 40),
+    );
+
+    if (product.imageUrl.isEmpty) return placeholder;
+
+    return Image.network(
+      product.imageUrl,
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return Container(
+          color: product.swatch,
+          alignment: Alignment.center,
+          child: const SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stack) => placeholder,
+    );
+  }
 }
 
 class _CategoryContent extends StatelessWidget {
-  const _CategoryContent();
+  const _CategoryContent({super.key});
 
   @override
   Widget build(BuildContext context) {
