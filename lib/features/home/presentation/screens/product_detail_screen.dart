@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/shop_data.dart';
 import 'store_screen.dart';
 
-/// Selectable color options shown on the detail page (presentational — the
-/// product model has no real color variants yet).
 const List<Color> _kDetailColors = [
   Color(0xFF8C5A3B),
   Color(0xFF1A1A2E),
@@ -17,8 +15,6 @@ const String _kLoremDescription =
     'since the 1500s, when an unknown printer took a galley of type and '
     'scrambled it to make a type specimen book.';
 
-/// Product detail page: large image header, ratings, color/quantity pickers,
-/// store info, description, and a pinned price + Add to Cart bar.
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
 
@@ -44,15 +40,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       bottomNavigationBar: _buildBottomBar(),
       body: Stack(
         children: [
-          // Image header
           SizedBox(
             height: imageHeight,
             width: double.infinity,
             child: _buildImage(),
           ),
-          // Overlaid top bar
           SafeArea(child: _buildTopBar()),
-          // Detail sheet, overlapping the bottom of the image
           Positioned.fill(
             top: imageHeight - 28,
             child: Container(
@@ -113,7 +106,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       children: [
-        // Name + favorite
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -132,7 +124,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ),
         const SizedBox(height: 10),
-        // Rating + stock
         Row(
           children: [
             const Icon(Icons.star, color: Color(0xFFFFC107), size: 18),
@@ -150,15 +141,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               '(320 Review)',
               style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
             ),
-            const Spacer(),
-            Text(
-              'Available in stock',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-            ),
           ],
         ),
         const SizedBox(height: 22),
-        // Color picker
         const Text(
           'Color',
           style: TextStyle(
@@ -193,7 +178,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         const SizedBox(height: 22),
         _buildStoreRow(),
         const SizedBox(height: 22),
-        // Description
         const Text(
           'Description',
           style: TextStyle(
@@ -208,35 +192,43 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  /// The right-hand control next to the name: a quantity stepper, matching the
-  /// "Avaliable in stok" layout from the mockup.
   Widget _buildQuantityOrFavorite() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _stepButton(Icons.remove, () {
-            if (_quantity > 1) setState(() => _quantity--);
-          }),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              '$_quantity',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: kDarkText,
-              ),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.shade200),
           ),
-          _stepButton(Icons.add, () => setState(() => _quantity++)),
-        ],
-      ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _stepButton(Icons.remove, () {
+                if (_quantity > 1) setState(() => _quantity--);
+              }),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Text(
+                  '$_quantity',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: kDarkText,
+                  ),
+                ),
+              ),
+              _stepButton(Icons.add, () => setState(() => _quantity++)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Avaliable in stock',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+        ),
+      ],
     );
   }
 
@@ -383,7 +375,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: kDarkText,
+                    color: kPrimary,
                   ),
                 ),
               ],

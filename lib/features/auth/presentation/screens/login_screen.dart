@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/auth_service.dart';
 import '../widgets/auth_widgets.dart';
@@ -54,6 +55,13 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _devSkipLogin() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (route) => false,
+    );
   }
 
   void _openForgotPassword() {
@@ -143,6 +151,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 loading: _loading,
                 onPressed: _signIn,
               ),
+              if (kDebugMode) ...[
+                const SizedBox(height: 12),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _devSkipLogin,
+                    icon: const Icon(Icons.bolt, size: 18),
+                    label: const Text('Skip login (dev) → Home'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.orange.shade700,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               Center(
                 child: Text(

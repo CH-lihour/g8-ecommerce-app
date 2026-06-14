@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-/// App accent color, shared across the shop screens.
 const Color kPrimary = Color(0xFF5B4DE6);
 const Color kDarkText = Color(0xFF1A1A2E);
 
@@ -10,13 +9,9 @@ class Product {
   final String name;
   final String seller;
   final double price;
-
-  /// Hosted URL for the product photo (e.g. a Cloudinary link). Empty when the
-  /// product has no image yet (we fall back to the [swatch] placeholder).
   final String imageUrl;
   final Color swatch;
-
-  /// When the product was added; used to sort newest-first.
+  final String categoryId;
   final DateTime createdAt;
 
   Product({
@@ -26,13 +21,12 @@ class Product {
     required this.price,
     this.imageUrl = '',
     this.swatch = const Color(0xFFE0E0E0),
+    this.categoryId = '',
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
 
-  /// Builds a [Product] from a Firestore `products` document.
   factory Product.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? const {};
-    // Tolerate either spelling of the timestamp field.
     final ts = (data['createdAt'] ?? data['createAt']) as Timestamp?;
     return Product(
       id: doc.id,
@@ -40,22 +34,63 @@ class Product {
       seller: (data['seller'] ?? '') as String,
       price: (data['price'] as num?)?.toDouble() ?? 0,
       imageUrl: (data['imageUrl'] ?? '') as String,
+      categoryId: (data['categoryId'] ?? '') as String,
       createdAt: ts?.toDate(),
     );
   }
 }
 
 class Category {
+  final String id;
   final String name;
+
+  final String iconUrl;
+  final bool isActive;
+
+  final String parentId;
+  final int sortOrder;
+
   final int productCount;
   final Color swatch;
 
   const Category({
+    this.id = '',
     required this.name,
-    required this.productCount,
-    required this.swatch,
+    this.iconUrl = '',
+    this.isActive = true,
+    this.parentId = '',
+    this.sortOrder = 0,
+    this.productCount = 0,
+    this.swatch = const Color(0xFFE0E0E0),
   });
+
+  String get displayName => name
+      .split(' ')
+      .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
+
+  factory Category.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? const {};
+    final sortOrder = (data['sortOrder'] as num?)?.toInt() ?? 0;
+    return Category(
+      id: doc.id,
+      name: (data['name'] ?? '') as String,
+      iconUrl: (data['iconUrl'] ?? '') as String,
+      isActive: (data['isActive'] ?? true) as bool,
+      parentId: (data['parentId'] ?? '') as String,
+      sortOrder: sortOrder,
+      swatch: kCategorySwatches[sortOrder % kCategorySwatches.length],
+    );
+  }
 }
+
+const List<Color> kCategorySwatches = [
+  Color(0xFF3A3A3A),
+  Color(0xFFCDE8B5),
+  Color(0xFFE8DCC9),
+  Color(0xFFE0E4E8),
+  Color(0xFF2E2E3A),
+];
 
 class PopularSearch {
   final String name;
@@ -72,42 +107,6 @@ class PopularSearch {
     required this.swatch,
   });
 }
-
-/// Mock catalogue used until a real backend is wired up.
-final List<Product> kNewArrivals = [
-  Product(
-    name: 'The Mirac Jiz',
-    seller: 'Lisa Robber',
-    price: 195.00,
-    swatch: Color(0xFFE8C9A0),
-  ),
-  Product(
-    name: 'Meriza Kiles',
-    seller: 'Gazuna Resika',
-    price: 143.45,
-    swatch: Color(0xFFCDD3DA),
-  ),
-  Product(
-    name: 'Lemon Skirt',
-    seller: 'Anna Kendrick',
-    price: 89.99,
-    swatch: Color(0xFFD9E8C9),
-  ),
-  Product(
-    name: 'Blue Denim',
-    seller: 'Rangga Saputra',
-    price: 120.00,
-    swatch: Color(0xFFC9D6E8),
-  ),
-];
-
-const List<Category> kCategories = [
-  Category(name: 'New Arrivals', productCount: 208, swatch: Color(0xFF3A3A3A)),
-  Category(name: 'Clothes', productCount: 358, swatch: Color(0xFFCDE8B5)),
-  Category(name: 'Bags', productCount: 160, swatch: Color(0xFFE8DCC9)),
-  Category(name: 'Shoese', productCount: 230, swatch: Color(0xFFE0E4E8)),
-  Category(name: 'Electronics', productCount: 130, swatch: Color(0xFF2E2E3A)),
-];
 
 const List<String> kLastSearch = [
   'Electronics',

@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-/// Thin wrapper around [FirebaseAuth] and Firestore for the auth flows.
 class AuthService {
   AuthService({FirebaseAuth? auth, FirebaseFirestore? firestore})
       : _auth = auth ?? FirebaseAuth.instance,
@@ -14,8 +13,6 @@ class AuthService {
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
 
-  /// Creates an email/password account, sets the display name and stores a
-  /// matching user document in Firestore.
   Future<UserCredential> register({
     required String username,
     required String email,
@@ -54,7 +51,6 @@ class AuthService {
 
   Future<void> signOut() => _auth.signOut();
 
-  /// Maps a [FirebaseAuthException] to a human-readable message.
   static String messageFromError(Object error) {
     if (error is FirebaseAuthException) {
       switch (error.code) {

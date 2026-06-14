@@ -4,7 +4,6 @@ import '../models/shop_data.dart';
 import 'product_detail_screen.dart';
 import 'store_screen.dart';
 
-/// How the search results are ordered, driven by the filter chips.
 enum _SortBy { all, latest, mostPopular, cheapest }
 
 extension on _SortBy {
@@ -16,7 +15,6 @@ extension on _SortBy {
   };
 }
 
-/// Color swatches shown in the "Filter By" sheet (first one = "Black").
 const List<Color> _kFilterColors = [
   Color(0xFF1A1A2E),
   Color(0xFFCFC6F2),
@@ -25,14 +23,8 @@ const List<Color> _kFilterColors = [
   Color(0xFFF0CBCB),
 ];
 
-/// Locations shown in the "Filter By" sheet.
 const List<String> _kFilterLocations = ['San Diego', 'New York', 'Amsterdam'];
 
-/// User-chosen filters from the "Filter By" sheet.
-///
-/// Only [priceRange] currently narrows results. [colorIndex] and [location]
-/// are captured to match the design but have no backing product data yet, so
-/// they don't affect which products are shown.
 class _ProductFilter {
   final RangeValues? priceRange;
   final int? colorIndex;
@@ -44,7 +36,6 @@ class _ProductFilter {
       priceRange != null || colorIndex != null || location != null;
 }
 
-/// Shows products matching a search query, with sort chips and a filter sheet.
 class SearchResultsScreen extends StatefulWidget {
   final String query;
 
@@ -62,7 +53,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   _SortBy _sort = _SortBy.all;
   _ProductFilter _filter = const _ProductFilter();
 
-  List<Product>? _matches; // null while loading
+  List<Product>? _matches; 
   Object? _error;
 
   @override
@@ -99,8 +90,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     _load();
   }
 
-  /// Highest price among the current matches, used as the price slider's max.
-  /// Rounded up to a whole dollar; falls back to 100 when there's no data.
   double get _maxPrice {
     final matches = _matches;
     if (matches == null || matches.isEmpty) return 100;
@@ -108,7 +97,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     return max <= 0 ? 100 : max.ceilToDouble();
   }
 
-  /// Applies the active price filter, then the chip-driven ordering.
   List<Product> _visibleProducts(List<Product> matches) {
     var products = matches;
 
@@ -127,7 +115,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       case _SortBy.cheapest:
         products.sort((a, b) => a.price.compareTo(b.price));
       case _SortBy.mostPopular:
-        // No popularity metric yet; keep the default (newest-first) order.
         break;
       case _SortBy.all:
         break;
@@ -258,7 +245,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     );
   }
 
-  /// Tappable seller row (as in the mockup) that opens the store front.
   Widget _buildStoreRow() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -330,7 +316,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
     final products = _visibleProducts(matches);
     if (products.isEmpty) {
-      final filtered = matches.isNotEmpty; // had matches, filter hid them all
+      final filtered = matches.isNotEmpty; 
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -369,10 +355,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 }
 
-/// The "Filter By" bottom sheet: price range, color, and location.
-///
-/// Returns the chosen [_ProductFilter] via `Navigator.pop` when the user taps
-/// "Apply Filter", or null if dismissed.
 class _FilterSheet extends StatefulWidget {
   final _ProductFilter initial;
   final double maxPrice;
@@ -392,7 +374,6 @@ class _FilterSheetState extends State<_FilterSheet> {
   void initState() {
     super.initState();
     _price = widget.initial.priceRange ?? RangeValues(0, widget.maxPrice);
-    // Guard against a stale range that exceeds the current max price.
     _price = RangeValues(
       _price.start.clamp(0, widget.maxPrice),
       _price.end.clamp(0, widget.maxPrice),
@@ -560,7 +541,6 @@ class _FilterSheetState extends State<_FilterSheet> {
     );
   }
 
-  /// A section heading with a trailing value (e.g. "Price" … "$0-$80").
   Widget _label(String title, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -582,7 +562,6 @@ class _FilterSheetState extends State<_FilterSheet> {
   }
 }
 
-/// Product tile used in the search results grid.
 class _ResultCard extends StatelessWidget {
   final Product product;
 

@@ -3,11 +3,7 @@ import '../../data/product_service.dart';
 import '../models/shop_data.dart';
 import 'product_detail_screen.dart';
 
-/// A seller's storefront: profile header, section tabs, a promo banner, and
-/// the seller's products. Product data comes from Firestore; the profile
-/// stats (followers etc.) are presentational for now.
 class StoreScreen extends StatefulWidget {
-  /// Name shown in the profile header (e.g. the product's seller).
   final String storeName;
 
   const StoreScreen({super.key, this.storeName = 'Upbox Bag'});
@@ -76,7 +72,6 @@ class _StoreScreenState extends State<StoreScreen> {
               ),
             ),
           ),
-          // Balances the leading back button so the title stays centered.
           Icon(Icons.shopping_bag_outlined, color: kDarkText, size: 24),
         ],
       ),
@@ -265,7 +260,6 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 }
 
-/// Swipeable promo banner shown on the store's Main Page tab.
 class _PromoBanner extends StatefulWidget {
   const _PromoBanner();
 
@@ -383,7 +377,6 @@ class _PromoBannerState extends State<_PromoBanner> {
   }
 }
 
-/// Product tile used in the store's product grid.
 class _StoreProductCard extends StatelessWidget {
   final Product product;
 

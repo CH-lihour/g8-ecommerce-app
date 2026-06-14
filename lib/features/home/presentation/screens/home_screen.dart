@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../auth/data/auth_service.dart';
+import '../../data/category_service.dart';
 import '../../data/product_service.dart';
 import '../models/shop_data.dart';
 import 'product_detail_screen.dart';
@@ -61,7 +62,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// The first bottom-nav tab: header + Home/Category sub-tabs.
 class _ShopTab extends StatefulWidget {
   const _ShopTab();
 
@@ -70,11 +70,9 @@ class _ShopTab extends StatefulWidget {
 }
 
 class _ShopTabState extends State<_ShopTab> {
-  int _tab = 0; // 0 = Home, 1 = Category
+  int _tab = 0; 
   final _authService = AuthService();
 
-  /// Name to greet the user with: the Auth display name, else the part of
-  /// the email before the '@', else a friendly fallback.
   String _displayName() {
     final user = _authService.currentUser;
     final name = user?.displayName;
@@ -98,8 +96,6 @@ class _ShopTabState extends State<_ShopTab> {
               switchInCurve: Curves.easeOut,
               switchOutCurve: Curves.easeIn,
               transitionBuilder: (child, animation) {
-                // Slide the incoming tab in from the side it sits on
-                // (Home from the left, Category from the right), with a fade.
                 final incoming = child.key == ValueKey(_tab);
                 final begin = Offset(
                   incoming
@@ -331,8 +327,6 @@ class _HomeContentState extends State<_HomeContent> {
   }
 }
 
-/// Swipeable promo banner with a page-dot indicator. Kept as its own widget so
-/// paging through slides only rebuilds the carousel, not the whole home tab.
 class _BannerCarousel extends StatefulWidget {
   const _BannerCarousel();
 
@@ -344,7 +338,6 @@ class _BannerCarouselState extends State<_BannerCarousel> {
   final _controller = PageController();
   int _index = 0;
 
-  /// Promo slides shown in the swipeable banner carousel.
   static const _banners = <_BannerData>[
     _BannerData(
       title: '24% off shipping today\non bag purchases',
@@ -404,7 +397,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
   }
 }
 
-/// Promo content for a single banner slide.
+
 class _BannerData {
   final String title;
   final String subtitle;
@@ -536,8 +529,6 @@ class _ProductCard extends StatelessWidget {
     );
   }
 
-  /// Shows the product photo from Firebase Storage, or a colored placeholder
-  /// while it loads / when the product has no image.
   Widget _buildImage() {
     final placeholder = Container(
       width: double.infinity,
@@ -570,24 +561,82 @@ class _ProductCard extends StatelessWidget {
   }
 }
 
-class _CategoryContent extends StatelessWidget {
+class _CategoryContent extends StatefulWidget {
   const _CategoryContent({super.key});
 
   @override
+  State<_CategoryContent> createState() => _CategoryContentState();
+}
+
+class _CategoryContentState extends State<_CategoryContent> {
+  final _categoryService = CategoryService();
+  final _productService = ProductService();
+
+  @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-      itemCount: kCategories.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 16),
-      itemBuilder: (_, i) => _CategoryCard(category: kCategories[i]),
+    return StreamBuilder<List<Category>>(
+      stream: _categoryService.watchCategories(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+            child: Center(
+              child: Text(
+                'Could not load categories.\n${snapshot.error}',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade500),
+              ),
+            ),
+          );
+        }
+
+        final categories = snapshot.data ?? const [];
+        if (categories.isEmpty) {
+          return const Center(child: Text('No categories yet.'));
+        }
+
+        return StreamBuilder<List<Product>>(
+          stream: _productService.watchProducts(),
+          builder: (context, productSnap) {
+            final counts = <String, int>{};
+            for (final p in productSnap.data ?? const <Product>[]) {
+              if (p.categoryId.isEmpty) continue;
+              counts[p.categoryId] = (counts[p.categoryId] ?? 0) + 1;
+            }
+
+            if (productSnap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final visible =
+                categories.where((c) => (counts[c.id] ?? 0) > 0).toList();
+            if (visible.isEmpty) {
+              return const Center(child: Text('No categories yet.'));
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              itemCount: visible.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 16),
+              itemBuilder: (_, i) => _CategoryCard(
+                category: visible[i],
+                productCount: counts[visible[i].id] ?? 0,
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
 
 class _CategoryCard extends StatelessWidget {
   final Category category;
+  final int productCount;
 
-  const _CategoryCard({required this.category});
+  const _CategoryCard({required this.category, required this.productCount});
 
   @override
   Widget build(BuildContext context) {
@@ -604,21 +653,23 @@ class _CategoryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            category.name,
+            category.displayName,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: _onColor(category.swatch),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            '${category.productCount} Product',
-            style: TextStyle(
-              fontSize: 12,
-              color: _onColor(category.swatch).withValues(alpha: 0.7),
+          if (productCount > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              '$productCount ${productCount == 1 ? 'Product' : 'Products'}',
+              style: TextStyle(
+                fontSize: 12,
+                color: _onColor(category.swatch).withValues(alpha: 0.7),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

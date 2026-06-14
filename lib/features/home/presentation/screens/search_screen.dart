@@ -19,8 +19,6 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  /// Records [term] as a recent search (most recent first, no duplicates) and
-  /// opens the results screen for it.
   void _search(String term) {
     final query = term.trim();
     if (query.isEmpty) return;

@@ -59,7 +59,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ],
               ),
             ),
-            // Animated page indicator driven by PageController.page
             AnimatedBuilder(
               animation: _controller,
               builder: (context, child) {
@@ -164,9 +163,8 @@ class _OnboardPage extends StatelessWidget {
                           ? controller!.page!
                           : index.toDouble();
                       final double delta = (page - index).abs();
-                      // scale between 0.92 and 1.0
                       final double scale = (1 - math.min(delta * 0.08, 0.08));
-                      final double translateX = (page - index) * 24; // slight parallax
+                      final double translateX = (page - index) * 24; 
                       return Transform.translate(
                         offset: Offset(translateX, 0),
                         child: Transform.scale(

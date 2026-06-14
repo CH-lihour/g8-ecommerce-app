@@ -4,7 +4,6 @@ const Color kPrimaryColor = Color(0xFF5B4DE6);
 const Color kDarkText = Color(0xFF1A1A2E);
 const Color kFieldFill = Color(0xFFF7F7FB);
 
-/// Bold field label used above auth text fields.
 class AuthFieldLabel extends StatelessWidget {
   final String text;
   const AuthFieldLabel(this.text, {super.key});
@@ -22,7 +21,6 @@ class AuthFieldLabel extends StatelessWidget {
   }
 }
 
-/// Filled, rounded text field with a leading icon and optional suffix.
 class AuthInputField extends StatelessWidget {
   final String hintText;
   final IconData icon;
@@ -73,10 +71,6 @@ class AuthInputField extends StatelessWidget {
   }
 }
 
-/// Full-width rounded purple primary button.
-///
-/// Set [loading] to disable the button and show a spinner while an async
-/// action is in flight.
 class AuthPrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
@@ -121,7 +115,6 @@ class AuthPrimaryButton extends StatelessWidget {
   }
 }
 
-/// Outlined, rounded social sign-in button.
 class AuthSocialButton extends StatelessWidget {
   final String label;
   final Widget icon;
@@ -162,7 +155,6 @@ class AuthSocialButton extends StatelessWidget {
   }
 }
 
-/// Google "G" logo with a built-in fallback if the asset is missing.
 class GoogleLogo extends StatelessWidget {
   const GoogleLogo({super.key, this.size = 22});
   final double size;
