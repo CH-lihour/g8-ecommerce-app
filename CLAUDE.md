@@ -76,6 +76,7 @@ flutter build windows                # Windows desktop -> build/windows/
 
 ```bash
 flutter analyze                          # static analysis / lint (flutter_lints)
+flutter analyze lib/features/cart        # scope analysis to a path
 flutter test                             # run all tests
 flutter test test/widget_test.dart       # run a single test file
 flutter test --name "substring"          # run tests whose name matches
@@ -92,8 +93,8 @@ flutter pub upgrade --major-versions     # bump dependency versions
 ## Architecture
 
 Code is organized by **feature** under `lib/features/<feature>/`, each split into
-`data/` (Firebase-facing services) and `presentation/` (`screens/`, `widgets/`,
-`models/`). Features: `splash`, `auth`, `home`.
+`data/` (Firebase-facing services or shared state) and `presentation/`
+(`screens/`, `widgets/`, `models/`). Features: `splash`, `auth`, `home`, `cart`.
 
 - **Entry / boot:** `lib/main.dart` initializes Firebase then shows
   `SplashScreen`. There is no routing table or auth gate — navigation is
@@ -101,15 +102,29 @@ Code is organized by **feature** under `lib/features/<feature>/`, each split int
   `MaterialPageRoute`s. The flow is hardcoded:
   `SplashScreen` → `OnboardingScreen` → (`LoginScreen` | `RegisterScreen`) →
   `HomeScreen`. Login does **not** check existing auth state on launch; the
-  splash always advances to onboarding regardless of `currentUser`.
+  splash always advances to onboarding regardless of `currentUser`. From
+  `HomeScreen` the shop flow fans out imperatively to `SearchScreen`,
+  `ProductDetailScreen`, `StoreScreen`, and `CartScreen`.
 
-- **Data layer = thin Firebase wrappers.** `auth/data/auth_service.dart` wraps
-  `FirebaseAuth` + Firestore (register also writes a `users/{uid}` doc);
-  `home/data/product_service.dart` wraps the Firestore `products` collection.
-  Both constructors accept injectable `FirebaseAuth`/`FirebaseFirestore` instances
-  for testing, defaulting to `.instance`. Each screen instantiates its own
-  service — there is no DI container or shared state management (no Provider/
-  Riverpod/Bloc); UI consumes Firestore via `StreamBuilder`/`FutureBuilder`.
+- **Data / service layer.** Most services are **thin Firebase wrappers**:
+  `auth/data/auth_service.dart` wraps `FirebaseAuth` + Firestore (register also
+  writes a `users/{uid}` doc); `home/data/product_service.dart` and
+  `home/data/category_service.dart` wrap the Firestore `products` /
+  `categories` collections. These constructors accept injectable
+  `FirebaseAuth`/`FirebaseFirestore` instances for testing, defaulting to
+  `.instance`, and each screen instantiates its own service. UI consumes
+  Firestore via `StreamBuilder`/`FutureBuilder`.
+
+- **State management.** There is no DI container and no state-management package
+  (no Provider/Riverpod/Bloc). The one piece of cross-screen mutable state is
+  the cart: `cart/data/cart_service.dart` is a singleton
+  `CartService extends ChangeNotifier` accessed via `CartService.instance` and
+  consumed with `ListenableBuilder`. It is **in-memory / session-only** — the
+  cart is not persisted to Firestore and resets on restart, and is not tied to
+  the signed-in user. Checkout totals (`subtotal`/`shipping`/`total`) are
+  computed only over `selected` line items. If you need a persistent or
+  per-account cart, add a `users/{uid}/cart` subcollection and keep the
+  `ChangeNotifier` API as the UI-facing surface.
 
 - **Firestore conventions** (see docstrings in the service files):
   - `products` docs: `name`, `seller`, `price` (num), `imageUrl` (hosted URL,
@@ -120,16 +135,23 @@ Code is organized by **feature** under `lib/features/<feature>/`, each split int
     new query/filter logic on the client to match this pattern.
 
 - **Models & theming:** `home/presentation/models/shop_data.dart` holds the
-  `Product` model (`Product.fromFirestore` tolerates both `createdAt` and the
-  misspelled `createAt`), shared theme colors (`kPrimary`, `kDarkText`), and
-  `k*` mock catalogue lists (`kNewArrivals`, `kCategories`, etc.) still used as
-  fallback UI data alongside live Firestore products.
+  `Product` and `Category` models (`Product.fromFirestore` tolerates both
+  `createdAt` and the misspelled `createAt`), shared theme colors (`kPrimary`,
+  `kDarkText`), and `k*` mock catalogue lists still used as fallback UI data
+  alongside live Firestore products. `cart/presentation/models/cart_item.dart`
+  wraps a `Product` with a chosen color, mutable `quantity`, and a `selected`
+  flag. Product color variants are **not** stored in Firestore — they come from
+  the hardcoded swatch list in `product_detail_screen.dart`.
 
 ## Gotchas
 
-- The legacy IML / module file is named `smart_student_attendance_system.iml`
-  (project was scaffolded from another app) — the real package name is
-  `g8_eccomerce_app`. Ignore the stale name.
+- The project was scaffolded from another app ("Smart Student Attendance
+  System"). The Dart package, Android, and Windows names are now
+  `g8_eccomerce_app`, but the **iOS/macOS bundle identifiers are still
+  `com.example.smartStudentAttendanceSystem`** (in the Xcode `project.pbxproj`,
+  `macos/Runner/Configs/AppInfo.xcconfig`, and `lib/firebase_options.dart`).
+  These match the Firebase console registration, so don't rename them without
+  re-running `flutterfire configure`.
 - Image assets must be registered in `pubspec.yaml` under `flutter: assets:`
   (currently the onboarding images and `google_logo.png`).
 - `test/widget_test.dart` is the default Flutter counter test and does not match

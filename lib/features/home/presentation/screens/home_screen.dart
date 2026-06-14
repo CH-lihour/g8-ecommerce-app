@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../auth/data/auth_service.dart';
+import '../../../cart/data/cart_service.dart';
+import '../../../cart/presentation/screens/cart_screen.dart';
+import '../../../cart/presentation/screens/my_order_screen.dart';
 import '../../data/category_service.dart';
 import '../../data/product_service.dart';
 import '../models/shop_data.dart';
@@ -7,23 +10,22 @@ import 'product_detail_screen.dart';
 import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int initialIndex;
+
+  const HomeScreen({super.key, this.initialIndex = 0});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _navIndex = 0;
+  late int _navIndex = widget.initialIndex;
 
   @override
   Widget build(BuildContext context) {
     final pages = [
       const _ShopTab(),
-      const _PlaceholderTab(
-        label: 'My Order',
-        icon: Icons.local_shipping_outlined,
-      ),
+      const MyOrderView(),
       const _PlaceholderTab(label: 'Favorite', icon: Icons.favorite_border),
       const _PlaceholderTab(label: 'My Profile', icon: Icons.person_outline),
     ];
@@ -161,9 +163,54 @@ class _ShopTabState extends State<_ShopTab> {
             ).push(MaterialPageRoute(builder: (_) => const SearchScreen())),
           ),
           const SizedBox(width: 12),
+          _buildCartIcon(context),
+          const SizedBox(width: 12),
           _circleIcon(Icons.notifications_none, badge: true),
         ],
       ),
+    );
+  }
+
+  Widget _buildCartIcon(BuildContext context) {
+    return ListenableBuilder(
+      listenable: CartService.instance,
+      builder: (context, _) {
+        final count = CartService.instance.totalQuantity;
+        return GestureDetector(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CartScreen()),
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(Icons.shopping_bag_outlined, color: kDarkText, size: 26),
+              if (count > 0)
+                Positioned(
+                  right: -6,
+                  top: -6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                    decoration: const BoxDecoration(
+                      color: kPrimary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '$count',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -237,6 +284,8 @@ class _HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<_HomeContent> {
   final _productService = ProductService();
+  late final Stream<List<Product>> _productsStream =
+      _productService.watchProducts();
 
   @override
   Widget build(BuildContext context) {
@@ -270,7 +319,7 @@ class _HomeContentState extends State<_HomeContent> {
           ),
           const SizedBox(height: 16),
           StreamBuilder<List<Product>>(
-            stream: _productService.watchProducts(),
+            stream: _productsStream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Padding(
@@ -571,11 +620,15 @@ class _CategoryContent extends StatefulWidget {
 class _CategoryContentState extends State<_CategoryContent> {
   final _categoryService = CategoryService();
   final _productService = ProductService();
+  late final Stream<List<Category>> _categoriesStream =
+      _categoryService.watchCategories();
+  late final Stream<List<Product>> _productsStream =
+      _productService.watchProducts();
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Category>>(
-      stream: _categoryService.watchCategories(),
+      stream: _categoriesStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -599,7 +652,7 @@ class _CategoryContentState extends State<_CategoryContent> {
         }
 
         return StreamBuilder<List<Product>>(
-          stream: _productService.watchProducts(),
+          stream: _productsStream,
           builder: (context, productSnap) {
             final counts = <String, int>{};
             for (final p in productSnap.data ?? const <Product>[]) {

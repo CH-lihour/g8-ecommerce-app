@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../cart/data/cart_service.dart';
+import '../../../cart/presentation/screens/cart_screen.dart';
 import '../models/shop_data.dart';
 import 'store_screen.dart';
 
@@ -8,6 +10,8 @@ const List<Color> _kDetailColors = [
   Color(0xFF1FA2A6),
   Color(0xFF2ECC71),
 ];
+
+const List<String> _kDetailColorNames = ['Brown', 'Black', 'Teal', 'Green'];
 
 const String _kLoremDescription =
     'Lorem Ipsum is simply dummy text of the printing and typesetting '
@@ -81,7 +85,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
             ),
           ),
-          _circleButton(Icons.shopping_bag_outlined),
+          _circleButton(Icons.shopping_bag_outlined, onTap: _openCart),
         ],
       ),
     );
@@ -411,11 +415,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
+  void _openCart() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CartScreen()),
+    );
+  }
+
   void _addToCart() {
+    CartService.instance.add(
+      _product,
+      quantity: _quantity,
+      color: _kDetailColors[_colorIndex],
+      colorName: _kDetailColorNames[_colorIndex],
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Added $_quantity × ${_product.name} to cart'),
         duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'View Cart',
+          onPressed: _openCart,
+        ),
       ),
     );
   }
