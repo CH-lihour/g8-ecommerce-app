@@ -18,9 +18,9 @@ extension OrderStatusLabel on OrderStatus {
   Color get color {
     switch (this) {
       case OrderStatus.onProgress:
-        return const Color(0xFF22C55E);
+        return const Color(0xFF2AD2C9);
       case OrderStatus.completed:
-        return Colors.grey;
+        return const Color(0xFF22C55E);
     }
   }
 }

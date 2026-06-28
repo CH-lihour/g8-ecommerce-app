@@ -21,4 +21,10 @@ class OrderService extends ChangeNotifier {
     _orders.insertAll(0, items.map(OrderLine.fromCartItem));
     notifyListeners();
   }
+
+  void markCompleted(OrderLine line) {
+    if (line.status == OrderStatus.completed) return;
+    line.status = OrderStatus.completed;
+    notifyListeners();
+  }
 }

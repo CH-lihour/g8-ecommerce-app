@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/auth_service.dart';
 import '../widgets/auth_widgets.dart';
 import 'verification_screen.dart';
+import 'phone_verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -35,11 +37,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     final username = _usernameController.text.trim();
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
+    final contact = _emailController.text.trim();
 
-    if (username.isEmpty || email.isEmpty || password.isEmpty) {
+    if (username.isEmpty || contact.isEmpty) {
       _showError('Please fill in all fields.');
+      return;
+    }
+
+    if (AuthService.looksLikeEmail(contact)) {
+      await _registerWithEmail(username: username, email: contact);
+    } else {
+      await _registerWithPhone(
+        username: username,
+        phone: AuthService.normalizePhone(contact),
+      );
+    }
+  }
+
+  Future<void> _registerWithEmail({
+    required String username,
+    required String email,
+  }) async {
+    final password = _passwordController.text;
+    if (password.isEmpty) {
+      _showError('Please enter a password.');
       return;
     }
     if (password.length < 6) {
@@ -65,6 +86,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _showError(AuthService.messageFromError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _registerWithPhone({
+    required String username,
+    required String phone,
+  }) async {
+    setState(() => _loading = true);
+    try {
+      await _authService.verifyPhoneNumber(
+        phoneNumber: phone,
+        verificationFailed: (FirebaseAuthException e) {
+          if (!mounted) return;
+          setState(() => _loading = false);
+          _showError(AuthService.messageFromError(e));
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          if (!mounted) return;
+          setState(() => _loading = false);
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PhoneVerificationScreen(
+                username: username,
+                phone: phone,
+                verificationId: verificationId,
+                resendToken: resendToken,
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      _showError(AuthService.messageFromError(e));
     }
   }
 
@@ -130,7 +186,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 8),
+              Text(
+                'Password is used for email sign-up. With a phone number we '
+                'send a one-time SMS code instead.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+              const SizedBox(height: 24),
               AuthPrimaryButton(
                 label: 'Create Account',
                 loading: _loading,

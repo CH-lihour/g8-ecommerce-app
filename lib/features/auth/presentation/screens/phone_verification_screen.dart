@@ -1,52 +1,78 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../home/presentation/screens/home_screen.dart';
 import '../../data/auth_service.dart';
 
-class VerificationScreen extends StatefulWidget {
-  const VerificationScreen({super.key, this.email = 'magdalena83@mail.com'});
+class PhoneVerificationScreen extends StatefulWidget {
+  const PhoneVerificationScreen({
+    super.key,
+    required this.username,
+    required this.phone,
+    required this.verificationId,
+    this.resendToken,
+  });
 
-  final String email;
+  final String username;
+  final String phone;
+  final String verificationId;
+  final int? resendToken;
 
   @override
-  State<VerificationScreen> createState() => _VerificationScreenState();
+  State<PhoneVerificationScreen> createState() =>
+      _PhoneVerificationScreenState();
 }
 
-class _VerificationScreenState extends State<VerificationScreen> {
-  final _authService = AuthService();
+class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
+  static const int _length = 6;
 
-  Timer? _pollTimer;
+  final _authService = AuthService();
+  late final List<TextEditingController> _controllers;
+  late final List<FocusNode> _focusNodes;
+
+  late String _verificationId;
+  int? _resendToken;
 
   Timer? _cooldownTimer;
   int _resendCooldown = 0;
-
-  bool _checking = false;
-  bool _verified = false;
+  bool _submitting = false;
 
   @override
   void initState() {
     super.initState();
-    _startPolling();
+    _verificationId = widget.verificationId;
+    _resendToken = widget.resendToken;
+    _controllers = List.generate(_length, (_) => TextEditingController());
+    _focusNodes = List.generate(_length, (_) => FocusNode());
     _startCooldown();
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
     _cooldownTimer?.cancel();
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
-  void _startPolling() {
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 3),
-      (_) => _checkVerified(silent: true),
-    );
+  String get _code => _controllers.map((c) => c.text).join();
+
+  void _onChanged(int index, String value) {
+    if (value.isNotEmpty && index < _length - 1) {
+      _focusNodes[index + 1].requestFocus();
+    } else if (value.isEmpty && index > 0) {
+      _focusNodes[index - 1].requestFocus();
+    }
+    setState(() {});
   }
 
   void _startCooldown() {
-    setState(() => _resendCooldown = 30);
+    setState(() => _resendCooldown = 60);
     _cooldownTimer?.cancel();
     _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_resendCooldown <= 1) {
@@ -58,36 +84,49 @@ class _VerificationScreenState extends State<VerificationScreen> {
     });
   }
 
-  Future<void> _checkVerified({bool silent = false}) async {
-    if (_verified) return;
-    if (!silent) setState(() => _checking = true);
+  Future<void> _submit() async {
+    if (_code.length < _length) {
+      _showMessage('Enter the $_length-digit code from the SMS.');
+      return;
+    }
+    setState(() => _submitting = true);
     try {
-      final verified = await _authService.reloadAndCheckEmailVerified();
+      await _authService.confirmPhoneSignUp(
+        verificationId: _verificationId,
+        smsCode: _code,
+        username: widget.username,
+        phone: widget.phone,
+      );
       if (!mounted) return;
-      if (verified) {
-        _verified = true;
-        _pollTimer?.cancel();
-        _showSuccessSheet();
-      } else if (!silent) {
-        _showMessage(
-          'Not verified yet. Open the link we emailed you, then try again.',
-        );
-      }
+      _showSuccessSheet();
     } catch (e) {
-      if (!mounted || silent) return;
+      if (!mounted) return;
       _showMessage(AuthService.messageFromError(e));
     } finally {
-      if (mounted && !silent) setState(() => _checking = false);
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
   Future<void> _resend() async {
     if (_resendCooldown > 0) return;
     try {
-      await _authService.sendEmailVerification();
-      if (!mounted) return;
-      _showMessage('Verification link sent. Check your inbox.');
-      _startCooldown();
+      await _authService.verifyPhoneNumber(
+        phoneNumber: widget.phone,
+        forceResendingToken: _resendToken,
+        verificationFailed: (e) {
+          if (!mounted) return;
+          _showMessage(AuthService.messageFromError(e));
+        },
+        codeSent: (verificationId, resendToken) {
+          if (!mounted) return;
+          setState(() {
+            _verificationId = verificationId;
+            _resendToken = resendToken;
+          });
+          _showMessage('A new code has been sent.');
+          _startCooldown();
+        },
+      );
     } catch (e) {
       if (!mounted) return;
       _showMessage(AuthService.messageFromError(e));
@@ -154,7 +193,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                       color: Color(0xFF5B4DE6),
                     ),
                     child: const Icon(
-                      Icons.mark_email_read_outlined,
+                      Icons.sms_outlined,
                       color: Colors.white,
                       size: 36,
                     ),
@@ -163,7 +202,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
               ),
               const SizedBox(height: 28),
               const Text(
-                'Verify your email',
+                'Verification Code',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -172,13 +211,13 @@ class _VerificationScreenState extends State<VerificationScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'We sent a verification link to',
+                'We sent a code via SMS to',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
               ),
               const SizedBox(height: 2),
               Text(
-                widget.email,
+                widget.phone,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 14,
@@ -186,15 +225,16 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   color: Color(0xFF1A1A2E),
                 ),
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Open the link in that email to activate your account. '
-                'This page updates automatically once you do.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.4,
-                  color: Colors.grey.shade500,
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _length,
+                  (i) => _OtpBox(
+                    controller: _controllers[i],
+                    focusNode: _focusNodes[i],
+                    onChanged: (v) => _onChanged(i, v),
+                  ),
                 ),
               ),
               const SizedBox(height: 40),
@@ -207,8 +247,8 @@ class _VerificationScreenState extends State<VerificationScreen> {
                     borderRadius: BorderRadius.circular(28),
                   ),
                 ),
-                onPressed: _checking ? null : () => _checkVerified(),
-                child: _checking
+                onPressed: _submitting ? null : _submit,
+                child: _submitting
                     ? const SizedBox(
                         width: 22,
                         height: 22,
@@ -218,7 +258,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                         ),
                       )
                     : const Text(
-                        "I've verified — Continue",
+                        'Submit',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -231,7 +271,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "Didn't receive the email? ",
+                    "Didn't receive the code? ",
                     style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                   ),
                   GestureDetector(
@@ -255,6 +295,57 @@ class _VerificationScreenState extends State<VerificationScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _OtpBox extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+
+  const _OtpBox({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool filled = controller.text.isNotEmpty;
+    final bool focused = focusNode.hasFocus;
+    return Container(
+      width: 46,
+      height: 56,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: filled ? Colors.white : const Color(0xFFF7F7FB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color:
+              focused || filled ? const Color(0xFF5B4DE6) : Colors.transparent,
+          width: 1.4,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        textAlign: TextAlign.center,
+        keyboardType: TextInputType.number,
+        maxLength: 1,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF1A1A2E),
+        ),
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: const InputDecoration(
+          counterText: '',
+          border: InputBorder.none,
+        ),
+        onChanged: onChanged,
       ),
     );
   }
@@ -309,7 +400,7 @@ class _RegisterSuccessSheet extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Congratulation! your email is verified.\nWelcome to an amazing experience.',
+            'Congratulation! your phone number is verified.\nWelcome to an amazing experience.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
           ),

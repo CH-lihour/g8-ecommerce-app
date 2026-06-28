@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../home/presentation/models/shop_data.dart';
 import '../../data/order_service.dart';
 import '../models/order.dart';
+import 'order_tracking_screen.dart';
 
 class MyOrderView extends StatefulWidget {
   const MyOrderView({super.key});
@@ -33,7 +34,8 @@ class _MyOrderViewState extends State<MyOrderView> {
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                   itemCount: lines.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 16),
-                  itemBuilder: (_, i) => _OrderCard(line: lines[i]),
+                  itemBuilder: (_, i) =>
+                      _OrderCard(line: lines[i], isHistory: _tab == 1),
                 );
               },
             ),
@@ -128,8 +130,9 @@ class _MyOrderViewState extends State<MyOrderView> {
 
 class _OrderCard extends StatelessWidget {
   final OrderLine line;
+  final bool isHistory;
 
-  const _OrderCard({required this.line});
+  const _OrderCard({required this.line, required this.isHistory});
 
   @override
   Widget build(BuildContext context) {
@@ -205,8 +208,10 @@ class _OrderCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _FilledButton(
-                  label: 'Tracking',
-                  onTap: () => _showTracking(context),
+                  label: isHistory ? 'Received Order' : 'Tracking',
+                  onTap: () => isHistory
+                      ? _receiveOrder(context)
+                      : _showTracking(context),
                 ),
               ),
             ],
@@ -226,9 +231,15 @@ class _OrderCard extends StatelessWidget {
   }
 
   void _showTracking(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => OrderTrackingScreen(line: line)),
+    );
+  }
+
+  void _receiveOrder(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Tracking ${line.product.name} — ${line.status.label}'),
+        content: Text('Order received — ${line.product.name}'),
         duration: const Duration(seconds: 2),
       ),
     );

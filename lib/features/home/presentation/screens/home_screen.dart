@@ -3,6 +3,10 @@ import '../../../auth/data/auth_service.dart';
 import '../../../cart/data/cart_service.dart';
 import '../../../cart/presentation/screens/cart_screen.dart';
 import '../../../cart/presentation/screens/my_order_screen.dart';
+import '../../../favorite/data/favorite_service.dart';
+import '../../../favorite/presentation/screens/favorite_screen.dart';
+import '../../../message/presentation/screens/message_list_screen.dart';
+import '../../../profile/presentation/screens/settings_screen.dart';
 import '../../data/category_service.dart';
 import '../../data/product_service.dart';
 import '../models/shop_data.dart';
@@ -26,8 +30,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final pages = [
       const _ShopTab(),
       const MyOrderView(),
-      const _PlaceholderTab(label: 'Favorite', icon: Icons.favorite_border),
-      const _PlaceholderTab(label: 'My Profile', icon: Icons.person_outline),
+      const FavoriteView(),
+      const SettingsScreen(showBack: false),
     ];
 
     return Scaffold(
@@ -165,7 +169,13 @@ class _ShopTabState extends State<_ShopTab> {
           const SizedBox(width: 12),
           _buildCartIcon(context),
           const SizedBox(width: 12),
-          _circleIcon(Icons.notifications_none, badge: true),
+          _circleIcon(
+            Icons.notifications_none,
+            badge: true,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MessageListScreen()),
+            ),
+          ),
         ],
       ),
     );
@@ -532,18 +542,29 @@ class _ProductCard extends StatelessWidget {
               Positioned(
                 top: 10,
                 right: 10,
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.favorite_border,
-                    size: 16,
-                    color: Colors.grey.shade600,
-                  ),
+                child: ListenableBuilder(
+                  listenable: FavoriteService.instance,
+                  builder: (context, _) {
+                    final isFav = FavoriteService.instance.isFavorite(product);
+                    return GestureDetector(
+                      onTap: () => FavoriteService.instance.toggle(product),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isFav ? Icons.favorite : Icons.favorite_border,
+                          size: 16,
+                          color: isFav
+                              ? const Color(0xFFF87171)
+                              : Colors.grey.shade600,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -733,40 +754,5 @@ class _CategoryCard extends StatelessWidget {
     return ThemeData.estimateBrightnessForColor(background) == Brightness.dark
         ? Colors.white
         : kDarkText;
-  }
-}
-
-class _PlaceholderTab extends StatelessWidget {
-  final String label;
-  final IconData icon;
-
-  const _PlaceholderTab({required this.label, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 56, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade500,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Coming soon',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
