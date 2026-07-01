@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
 class AuthService {
   AuthService({FirebaseAuth? auth, FirebaseFirestore? firestore})
@@ -120,6 +122,108 @@ class AuthService {
     return _auth.sendPasswordResetEmail(email: email.trim());
   }
 
+  Future<UserCredential> signInWithFacebook() async {
+    if (kIsWeb) {
+      final provider = FacebookAuthProvider()..addScope('email');
+      final result = await _auth.signInWithPopup(provider);
+      await _upsertSocialUser(result.user);
+      return result;
+    }
+
+    final loginResult = await FacebookAuth.instance.login(
+      permissions: const ['email', 'public_profile'],
+    );
+
+    switch (loginResult.status) {
+      case LoginStatus.success:
+        final accessToken = loginResult.accessToken;
+        if (accessToken == null) {
+          throw FirebaseAuthException(
+            code: 'facebook-no-token',
+            message: 'Facebook did not return an access token.',
+          );
+        }
+        final credential =
+            FacebookAuthProvider.credential(accessToken.tokenString);
+        final result = await _auth.signInWithCredential(credential);
+        // Firebase doesn't always populate photoURL/displayName from a
+        // Facebook credential, so pull the profile directly and sync it.
+        Map<String, dynamic>? fbProfile;
+        try {
+          fbProfile = await FacebookAuth.instance.getUserData(
+            fields: 'name,email,picture.width(400).height(400)',
+          );
+        } catch (_) {
+          // Ignore: fall back to whatever Firebase already provided.
+        }
+        await _syncFacebookProfile(result.user, fbProfile);
+        return result;
+      case LoginStatus.cancelled:
+        throw FirebaseAuthException(
+          code: 'facebook-login-cancelled',
+          message: 'Facebook sign-in was cancelled.',
+        );
+      case LoginStatus.failed:
+      case LoginStatus.operationInProgress:
+        throw FirebaseAuthException(
+          code: 'facebook-login-failed',
+          message: loginResult.message ?? 'Facebook sign-in failed.',
+        );
+    }
+  }
+
+  Future<UserCredential> linkPendingCredential({
+    required String email,
+    required String password,
+    required AuthCredential pendingCredential,
+  }) async {
+    final result = await _auth.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+    await result.user?.linkWithCredential(pendingCredential);
+    await _upsertSocialUser(result.user);
+    return result;
+  }
+
+  /// Writes the Facebook name/photo onto the Firebase user (so
+  /// `currentUser.displayName`/`photoURL` are populated for the UI) and then
+  /// mirrors the profile into the `users/{uid}` doc.
+  Future<void> _syncFacebookProfile(
+    User? user,
+    Map<String, dynamic>? profile,
+  ) async {
+    if (user == null) return;
+
+    final name = (profile?['name'] as String?)?.trim();
+    final photoUrl =
+        (profile?['picture'] as Map?)?['data']?['url'] as String?;
+
+    if (name != null && name.isNotEmpty && name != user.displayName) {
+      await user.updateDisplayName(name);
+    }
+    if (photoUrl != null &&
+        photoUrl.isNotEmpty &&
+        photoUrl != user.photoURL) {
+      await user.updatePhotoURL(photoUrl);
+    }
+    await user.reload();
+
+    await _upsertSocialUser(_auth.currentUser ?? user);
+  }
+
+  Future<void> _upsertSocialUser(User? user) async {
+    if (user == null) return;
+    await _firestore.collection('users').doc(user.uid).set({
+      'uid': user.uid,
+      'username': user.displayName ?? '',
+      'email': user.email ?? '',
+      'photoUrl': user.photoURL ?? '',
+      'provider': 'facebook',
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<void> updateProfile({
     required String username,
     required String contact,
@@ -158,7 +262,16 @@ class AuthService {
     await user.updatePassword(newPassword);
   }
 
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() async {
+    if (!kIsWeb) {
+      try {
+        await FacebookAuth.instance.logOut();
+      } catch (_) {
+        // Ignore: no active Facebook session to clear.
+      }
+    }
+    await _auth.signOut();
+  }
 
   static String messageFromError(Object error) {
     if (error is FirebaseAuthException) {
@@ -197,8 +310,17 @@ class AuthService {
           return 'reCAPTCHA verification failed. Please try again.';
         case 'operation-not-allowed':
         case 'configuration-not-found':
-          return 'Email/Password sign-in is not enabled in Firebase. '
+          return 'This sign-in method is not enabled in Firebase. '
               'Enable it in Firebase Console > Authentication > Sign-in method.';
+        case 'account-exists-with-different-credential':
+          return 'An account already exists with the same email but a '
+              'different sign-in method. Sign in with that method instead.';
+        case 'facebook-login-cancelled':
+          return 'Facebook sign-in was cancelled.';
+        case 'facebook-login-failed':
+        case 'facebook-no-token':
+          return error.message ??
+              'Facebook sign-in failed. Please try again.';
         default:
           return 'Auth error [${error.code}]: '
               '${error.message ?? 'please try again.'}';

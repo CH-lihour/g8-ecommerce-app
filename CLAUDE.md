@@ -5,14 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 `g8_eccomerce_app` ("Kutuku") is a Flutter e-commerce app backed by Firebase
-(Auth + Cloud Firestore). Targets Android, iOS, web, macOS, and Windows.
-Requires Dart/Flutter SDK `^3.10.0`.
+(Auth + Cloud Firestore). **Targets Android and iOS only** — the `web/`,
+`macos/`, and `windows/` runner directories still exist from scaffolding but are
+not supported targets; Facebook login in particular is wired natively for
+Android/iOS only (see Gotchas). Requires Dart/Flutter SDK `^3.10.0`.
 
 ## Setup / install (step by step)
 
 **Prerequisites:** Git, and the Flutter SDK (stable channel, bundles Dart
-`>=3.10.0`). Platform toolchains as needed: Android Studio + SDK for Android,
-Xcode for iOS/macOS, Visual Studio (Desktop C++) for Windows, Chrome for web.
+`>=3.10.0`). Platform toolchains: Android Studio + SDK for Android, and (on
+macOS) Xcode for iOS.
 
 1. **Clone the repo and enter it:**
    ```bash
@@ -34,7 +36,7 @@ Xcode for iOS/macOS, Visual Studio (Desktop C++) for Windows, Chrome for web.
    committed, but the platform credential files are git-ignored and must be
    supplied locally:
    - Android → `android/app/google-services.json`
-   - iOS / macOS → `ios/Runner/GoogleService-Info.plist`
+   - iOS → `ios/Runner/GoogleService-Info.plist`
 
    If they are missing (or you are pointing at a different Firebase project),
    regenerate everything with the FlutterFire CLI:
@@ -45,7 +47,11 @@ Xcode for iOS/macOS, Visual Studio (Desktop C++) for Windows, Chrome for web.
 5. **Enable Email/Password auth** in the Firebase console
    (Authentication → Sign-in method). If it is off, login/register fail and
    `AuthService.messageFromError` shows a hint pointing here.
-6. **Run the app** on a connected device or emulator:
+6. **(Optional) Configure Facebook login.** The "Sign In/Up with Facebook"
+   buttons call `AuthService.signInWithFacebook()` and need both console setup
+   and native credentials (see the Facebook login section under Gotchas). If you
+   are not using it, the buttons simply surface a friendly error.
+7. **Run the app** on a connected device or emulator:
    ```bash
    flutter devices    # list available targets
    flutter run        # launch on the default device
@@ -57,10 +63,13 @@ Xcode for iOS/macOS, Visual Studio (Desktop C++) for Windows, Chrome for web.
 
 ```bash
 flutter run                 # default connected device
-flutter run -d chrome       # web
-flutter run -d windows      # Windows desktop
 flutter run -d <id>         # a specific device from `flutter devices`
 ```
+
+After adding/upgrading a plugin (e.g. `flutter_facebook_auth`), a hot
+restart will **not** register its native side — you must fully stop the app and
+rebuild (`flutter run`), or `flutter clean` first if the build is stale.
+Symptom of skipping this: `MissingPluginException(No implementation found...)`.
 
 ### Build (release)
 
@@ -68,8 +77,6 @@ flutter run -d <id>         # a specific device from `flutter devices`
 flutter build apk                    # Android APK -> build/app/outputs/flutter-apk/
 flutter build appbundle              # Android App Bundle (.aab) for Play Store
 flutter build ios                    # iOS (requires macOS + Xcode)
-flutter build web                    # web bundle -> build/web/
-flutter build windows                # Windows desktop -> build/windows/
 ```
 
 ### Analyze & test
@@ -107,8 +114,13 @@ Code is organized by **feature** under `lib/features/<feature>/`, each split int
   `ProductDetailScreen`, `StoreScreen`, and `CartScreen`.
 
 - **Data / service layer.** Most services are **thin Firebase wrappers**:
-  `auth/data/auth_service.dart` wraps `FirebaseAuth` + Firestore (register also
-  writes a `users/{uid}` doc); `home/data/product_service.dart` and
+  `auth/data/auth_service.dart` wraps `FirebaseAuth` + Firestore and is the
+  single surface for all sign-in methods — email/password, phone OTP, and
+  Facebook (`signInWithFacebook()`, which branches `kIsWeb` → Firebase popup vs.
+  mobile → `flutter_facebook_auth`). Each method that creates a user writes/
+  merges a `users/{uid}` doc (`provider: 'facebook'` for social sign-in); map
+  errors to UI text through `AuthService.messageFromError`.
+  `home/data/product_service.dart` and
   `home/data/category_service.dart` wrap the Firestore `products` /
   `categories` collections. These constructors accept injectable
   `FirebaseAuth`/`FirebaseFirestore` instances for testing, defaulting to
@@ -156,3 +168,22 @@ Code is organized by **feature** under `lib/features/<feature>/`, each split int
   (currently the onboarding images and `google_logo.png`).
 - `test/widget_test.dart` is the default Flutter counter test and does not match
   this app — update it before relying on `flutter test` as a real signal.
+
+### Facebook login
+
+Wired natively for Android + iOS only. Three credentials from the Facebook
+developer console (Settings → Basic for App ID; Settings → Advanced for Client
+token) must be filled into platform files — they ship with `YOUR_FACEBOOK_*`
+placeholders that **must not** be committed as-is:
+
+- Android → `android/app/src/main/res/values/strings.xml`
+  (`facebook_app_id`, `fb_login_protocol_scheme` = literally `fb` + app id,
+  `facebook_client_token`). The matching `<meta-data>`/`FacebookActivity`/
+  `CustomTabActivity` and INTERNET permission live in `AndroidManifest.xml`.
+- iOS → `ios/Runner/Info.plist` (`FacebookAppID`, `FacebookClientToken`,
+  `FacebookDisplayName`, the `fb<appid>` URL scheme, and `LSApplicationQueriesSchemes`).
+
+Also required: enable **Facebook** in Firebase Console → Authentication (with the
+FB App Secret), and on Android register your signing-key hash in the FB app or
+the dialog returns `invalid key hash`. Keep the same App ID/Client Token in sync
+across the Android and iOS files.

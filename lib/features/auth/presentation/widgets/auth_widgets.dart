@@ -155,6 +155,32 @@ class AuthSocialButton extends StatelessWidget {
   }
 }
 
+class UserAvatar extends StatelessWidget {
+  const UserAvatar({
+    super.key,
+    required this.photoUrl,
+    this.radius = 24,
+    this.backgroundColor = const Color(0xFFE0E0E0),
+  });
+
+  final String? photoUrl;
+  final double radius;
+  final Color backgroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = photoUrl?.trim() ?? '';
+    final fallback = Icon(Icons.person, color: Colors.white, size: radius);
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: backgroundColor,
+      backgroundImage: url.isEmpty ? null : NetworkImage(url),
+      onBackgroundImageError: url.isEmpty ? null : (_, _) {},
+      child: url.isEmpty ? fallback : null,
+    );
+  }
+}
+
 class GoogleLogo extends StatelessWidget {
   const GoogleLogo({super.key, this.size = 22});
   final double size;

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/auth_service.dart';
 import '../widgets/auth_widgets.dart';
-import 'verification_screen.dart';
+import '../widgets/verification_screen.dart';
 import 'phone_verification_screen.dart';
+import '../widgets/link_facebook_sheet.dart';
+import '../../../home/presentation/screens/home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -124,6 +126,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  void _goHome() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _signUpWithFacebook() async {
+    setState(() => _loading = true);
+    try {
+      await _authService.signInWithFacebook();
+      if (!mounted) return;
+      _goHome();
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      if (e.code == 'account-exists-with-different-credential' &&
+          e.credential != null &&
+          (e.email ?? '').isNotEmpty) {
+        final linked = await showLinkFacebookSheet(
+          context: context,
+          email: e.email!,
+          pendingCredential: e.credential!,
+        );
+        if (linked && mounted) _goHome();
+      } else {
+        _showError(AuthService.messageFromError(e));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showError(AuthService.messageFromError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -219,7 +256,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   color: Color(0xFF1877F2),
                   size: 24,
                 ),
-                onPressed: () {},
+                onPressed: _loading ? () {} : _signUpWithFacebook,
               ),
               const SizedBox(height: 24),
             ],

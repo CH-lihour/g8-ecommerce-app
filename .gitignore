@@ -70,3 +70,9 @@ firebase-debug.log
 **/ios/.symlinks/
 **/macos/Pods/
 **/macos/.symlinks/
+
+strings.xml
+Info.plist
+ios/Runner/Info.plist
+
+.vscode/

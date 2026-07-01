@@ -120,10 +120,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       height: 96,
       child: Stack(
         children: [
-          const CircleAvatar(
+          UserAvatar(
+            photoUrl: _auth.currentUser?.photoURL,
             radius: 48,
-            backgroundColor: Color(0xFFE0D6C3),
-            child: Icon(Icons.person, color: Colors.white, size: 50),
+            backgroundColor: const Color(0xFFE0D6C3),
           ),
           Positioned(
             right: 0,

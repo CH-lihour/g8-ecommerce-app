@@ -1,1 +1,28 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"g8-eccomerce-app","appId":"1:109288526882:android:5b2ce237d7fc219c4b267b","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"g8-eccomerce-app","configurations":{"android":"1:109288526882:android:5b2ce237d7fc219c4b267b","ios":"1:109288526882:ios:028d2f838fc3563f4b267b","macos":"1:109288526882:ios:028d2f838fc3563f4b267b","web":"1:109288526882:web:e79659f81095f5634b267b","windows":"1:109288526882:web:b27c6f1da4a3d7554b267b"}}}}}}
+{
+    "firestore": {
+        "rules": "firestore.rules"
+    },
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "g8-eccomerce-app",
+                    "appId": "1:109288526882:android:5b2ce237d7fc219c4b267b",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "g8-eccomerce-app",
+                    "configurations": {
+                        "android": "1:109288526882:android:5b2ce237d7fc219c4b267b",
+                        "ios": "1:109288526882:ios:028d2f838fc3563f4b267b",
+                        "macos": "1:109288526882:ios:028d2f838fc3563f4b267b",
+                        "web": "1:109288526882:web:e79659f81095f5634b267b",
+                        "windows": "1:109288526882:web:b27c6f1da4a3d7554b267b"
+                    }
+                }
+            }
+        }
+    }
+}

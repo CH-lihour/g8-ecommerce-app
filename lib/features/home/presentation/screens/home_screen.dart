@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../auth/data/auth_service.dart';
+import '../../../auth/presentation/widgets/auth_widgets.dart' show UserAvatar;
 import '../../../cart/data/cart_service.dart';
 import '../../../cart/presentation/screens/cart_screen.dart';
 import '../../../cart/presentation/screens/my_order_screen.dart';
@@ -135,10 +136,9 @@ class _ShopTabState extends State<_ShopTab> {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Row(
         children: [
-          const CircleAvatar(
+          UserAvatar(
+            photoUrl: _authService.currentUser?.photoURL,
             radius: 22,
-            backgroundColor: Color(0xFFE0E0E0),
-            child: Icon(Icons.person, color: Colors.white),
           ),
           const SizedBox(width: 12),
           Column(
